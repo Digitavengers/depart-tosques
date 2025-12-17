@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aurevoir Frédéric !</title>
+    <style>
+        :root {
+            --matrix-green: #00ff41;
+            --dark-bg: #0a1a0a; /* Fond vert très sombre */
+            --terminal-glow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        body {
+            /* CHANGEMENT ICI : Fond vert sombre radial */
+            background: radial-gradient(circle at center, #0d3d0d 0%, #020a02 100%);
+            color: var(--matrix-green);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #terminal-container {
+            width: 80%;
+            max-width: 800px;
+            height: 60vh;
+            background-color: rgba(0, 0, 0, 0.9);
+            border: 2px solid var(--matrix-green);
+            box-shadow: var(--terminal-glow);
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Effet "Scanline" d'écran */
+        #terminal-container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .line {
+            margin-bottom: 10px;
+            opacity: 0;
+            animation: fadeIn 0.1s forwards;
+        }
+
+        .highlight {
+            background-color: var(--matrix-green);
+            color: #000;
+            font-weight: bold;
+            padding: 2px 5px;
+        }
+
+        .item-special {
+            color: #ffff00;
+            font-weight: bold;
+            text-shadow: 0 0 5px #ffff00;
+        }
+
+        .error { color: red; font-weight: bold; text-shadow: 0 0 5px red; }
+
+        .cursor {
+            display: inline-block; width: 10px; height: 15px;
+            background-color: var(--matrix-green);
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        #btn-container {
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+            z-index: 10;
+        }
+
+        .matrix-button {
+            background-color: #000;
+            color: var(--matrix-green);
+            border: 2px solid var(--matrix-green);
+            padding: 15px 30px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: var(--terminal-glow);
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .matrix-button:hover {
+            background-color: var(--matrix-green);
+            color: #000;
+            box-shadow: 0 0 25px var(--matrix-green);
+        }
+
+        /* --- NOUVEAUX STYLES POUR LA POP-UP (MODAL) --- */
+        .modal {
+            display: none; /* Caché par défaut */
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8); /* Fond semi-transparent */
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-content {
+            background-color: #000;
+            margin: 10% auto;
+            border: 3px solid var(--matrix-green);
+            box-shadow: 0 0 30px var(--matrix-green), inset 0 0 10px var(--matrix-green);
+            width: 80%;
+            max-width: 500px;
+            animation: slideDown 0.4s ease-out;
+            position: relative;
+        }
+        
+        @keyframes slideDown {
+            from {transform: translateY(-50px); opacity: 0;}
+            to {transform: translateY(0); opacity: 1;}
+        }
+
+        .modal-header {
+            padding: 15px;
+            background-color: rgba(0, 255, 65, 0.1);
+            border-bottom: 2px solid var(--matrix-green);
+            display: flex;
+            align-items: center;
+        }
+
+        .modal-icon {
+            width: 30px;
+            height: 30px;
+            margin-right: 15px;
+            /* Icône de sécurité encodée en base64 SVG */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ff41'%3E%3Cpath d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.9c-1.45 0-2.62-1.17-2.62-2.62s1.17-2.62 2.62-2.62 2.62 1.17 2.62 2.62-1.17 2.62-2.62 2.62zm3.5 3.5H8.5v-.87c0-1.17.95-2.13 2.13-2.13h2.75c1.17 0 2.13.95 2.13 2.13v.87z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .modal-body {
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* Image intégrée */
+        .modal-image {
+            width: 100%;
+            max-width: 200px;
+            height: auto;
+            border: 2px solid var(--matrix-green);
+            box-shadow: var(--terminal-glow);
+            margin-bottom: 20px;
+            /* Image rétro encodée pour éviter les fichiers externes */
+            content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150' width='200' height='150'%3E%3Crect width='200' height='150' fill='%23000'/%3E%3Crect x='10' y='10' width='180' height='110' fill='%230d3d0d' stroke='%2300ff41' stroke-width='2'/%3E%3Ctext x='100' y='70' fill='%2300ff41' font-family='Courier, monospace' font-size='14' text-anchor='middle'%3E[COLLECTOR ITEM]%3C/text%3E%3Ctext x='100' y='90' fill='%2300ff41' font-family='Courier, monospace' font-size='10' text-anchor='middle'%3EVIRBAC SECURITY EQT.%3C/text%3E%3Crect x='40' y='130' width='120' height='10' fill='%23222' stroke='%2300ff41'/%3E%3C/svg%3E");
+        }
+
+        .modal-footer {
+            padding: 15px;
+            border-top: 1px solid var(--matrix-green);
+            text-align: right;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: var(--matrix-green);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-btn:hover { color: #fff; }
+
+        .final-text { font-size: 1.1rem; line-height: 1.6; }
+        .highlight-text { color: #ffff00; font-weight: bold; font-size: 1.3rem; margin-top: 20px; display: block;}
+
+    </style>
+</head>
+<body>
+
+    <div style="width: 100%; display:flex; flex-direction:column; align-items:center;">
+        <div id="terminal-container">
+            <div id="content"></div>
+            <span class="cursor"></span>
+        </div>
+        
+        <div id="btn-container">
+            <button id="openModalBtn" class="matrix-button">LANCER LE PROTOCOLE : NOUVELLE VIE</button>
+        </div>
+    </div>
+
+    <div id="customModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <div class="modal-header">
+                <div class="modal-icon"></div>
+                <h2>CONFIRMATION SYSTÈME</h2>
+            </div>
+            <div class="modal-body">
+                <img class="modal-image" alt="Tapis Collector Virbac">
+                <p class="final-text">Merci pour le tapis de souris collector Fred !</p>
+                <p class="final-text">Il me fera penser à toi à chaque clic.</p>
+                <span class="highlight-text">Bonne route pour tes nouvelles aventures !</span>
+            </div>
+            <div class="modal-footer">
+                <button class="matrix-button" id="closeModalActions">TERMINER LA SESSION</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const contentDiv = document.getElementById('content');
+        const btnContainer = document.getElementById('btn-container');
+
+        // Configuration du terminal
+        const lines = [
+            "Initialisation du protocole de départ...",
+            "Connexion au serveur VIRBAC_SECURE_V3...",
+            "Utilisateur identifié : [FREDERIC_TOSQUES]",
+            "Statut : RESPONSABLE SECURITÉ DSI (VIRBAC)",
+            "------------------------------------------------",
+            "> Analyse des menaces en cours...",
+            "> Scan des virus informatiques... 0 détecté.",
+            "> Scan des tiques et puces... 0 détecté (Merci le Bravecto).",
+            "> Scan des Chevaux de Troie... RAS.",
+            "------------------------------------------------",
+            "> Inventaire du matériel de sécurité...",
+            "> PC Portable CISO : Restitué.",
+            "> Badge d'accès global : Désactivé.",
+            "> DÉTECTION D'UN ARTEFACT NON-STANDARD...",
+            "  ... OBJET : [TAPIS DE SOURIS COLLECTOR]",
+            "  ... Statut : Laissé en héritage à l'équipe.",
+            "  ... Note Système : Transfert de propriété validé.",
+            "------------------------------------------------",
+            "ALERTE : Tentative de sortie du périmètre détectée !",
+            "Analyse de la destination : [NOUVELLES AVENTURES]",
+            "Désactivation du Pare-feu personnel de Fred...",
+            "Suppression des derniers accès admin...",
+            "NOTE SYSTÈME : Merci pour tout Fred.",
+            "...",
+            "ACCÈS AUTORISÉ. Session prête à être fermée.",
+        ];
+
+        let lineIndex = 0;
+
+        function typeWriter() {
+            if (lineIndex < lines.length) {
+                const div = document.createElement('div');
+                div.classList.add('line');
+                let text = lines[lineIndex];
+                
+                // Styles conditionnels
+                if(text.includes("ALERTE")) div.classList.add('error');
+                if(text.includes("FREDERIC_TOSQUES")) text = text.replace("FREDERIC_TOSQUES", "<span class='highlight'>FREDERIC_TOSQUES</span>");
+                // Mise en valeur du Tapis Collector
+                if(text.includes("[TAPIS DE SOURIS COLLECTOR]")) div.classList.add('item-special');
+                
+                div.innerHTML = "> " + text;
+                contentDiv.appendChild(div);
+                document.getElementById('terminal-container').scrollTop = document.getElementById('terminal-container').scrollHeight;
+                lineIndex++;
+                setTimeout(typeWriter, Math.random() * 400 + 100);
+            } else {
+                setTimeout(() => { btnContainer.style.display = 'block'; }, 1000);
+            }
+        }
+
+        // --- GESTION DE LA NOUVELLE POP-UP (MODAL) ---
+        const modal = document.getElementById("customModal");
+        const openBtn = document.getElementById("openModalBtn");
+        const closeSpan = document.getElementsByClassName("close-btn")[0];
+        const closeActionBtn = document.getElementById("closeModalActions");
+
+        // Ouvrir la modale au clic sur le bouton principal
+        openBtn.onclick = function() {
+            modal.style.display = "block";
+        }
+
+        // Fermer la modale (les deux options)
+        function closeModal() {
+             modal.style.display = "none";
+        }
+        closeSpan.onclick = closeModal;
+        closeActionBtn.onclick = closeModal;
+
+        // Fermer si on clique en dehors de la boîte
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        window.onload = typeWriter;
+    </script>
+</body>
+</html>
